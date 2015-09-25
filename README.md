@@ -27,6 +27,8 @@ bibliographic source files. If the target format is Docx, or LaTeX without
 natbib/biblatex packages, the references will be processed with pandoc-citeproc
 (in this case the `csl` key may specify a citation style file).
 
+Also, you may define a multi-file document using the `chapters` metadata key.
+
 # Compilation
 
 ```sh
