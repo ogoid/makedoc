@@ -1,47 +1,56 @@
 module Main where
 
 import Control.Applicative ((<$>))
-import Control.Monad       (filterM, unless, void)
+import Control.Monad       (filterM, unless, void, when)
 import System.Directory    (doesFileExist, getCurrentDirectory,
                             getDirectoryContents, removeFile)
-import System.Environment  (getArgs)
+import System.Environment  (getArgs, getProgName)
 import System.FilePath     (addExtension, splitExtension)
+import System.Exit         (die)
 
 import Conversion
 import Runner
 
+
 main :: IO ()
-main = mapM_ (choose . splitExtension) =<< getArgs
-  where
-  choose (base, ext)
-    | ext == ".tex" = makeTex base
-    | ext == ".pdf" = makePdf base
-    | ext == ".docx"= makeDocx base
-    | not $ null ext = error "unknown file type"
-    | base == "clean" = cleanupAll
-    | otherwise = makePdf base
+main = do
+  args <- getArgs
+  when (length args /= 1) usage
+  case splitExtension (head args) of
+    ("clean",  "" ) -> cleanupAll
+    (base, ".tex" ) -> makeTex base
+    (base, ".pdf" ) -> makePdf base
+    (base, ".docx") -> makeDocx base
+    otherwise -> usage
+  where usage = die . unlines . help =<< getProgName
+        help prog = header : map (prefix ++) cmds
+          where header = "For a file.md source, run:"
+                prefix = "  " ++ prog ++ " "
+                cmds = [ "file.tex  to generate a LaTeX source"
+                       , "file.pdf  to generate a PDF document"
+                       , "file.docx to generate a Word document"
+                       , "clean     to remove all LaTeX temporary files"
+                       ]
+
 
 -- creates .tex from .md
 makeTex :: FilePath -> IO ()
 makeTex base = do
-  let tex = addExtension base "tex"
-      md  = addExtension base "md"
+  let [tex, md] = addExtension base <$> ["tex", "md"]
   putStrLn $ "Producing: " ++ tex
   writeDoc tex =<< readDoc md
 
 -- creates .docx from .md
 makeDocx :: FilePath -> IO ()
 makeDocx base = do
-  let docx = addExtension base "docx"
-      md   = addExtension base "md"
+  let [docx, md] = addExtension base <$> ["docx", "md"]
   putStrLn $ "Producing: " ++ docx
   writeWord docx =<< readDoc md
 
 
 makePdf :: FilePath -> IO ()
 makePdf base = do
-  let tex = addExtension base "tex"
-      pdf = addExtension base "pdf"
+  let [pdf, tex] = addExtension base <$> ["pdf", "tex"]
   hasTex <- doesFileExist tex
   unless hasTex (void $ makeTex base)
   putStrLn $ "Producing: " ++ pdf
